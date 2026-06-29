@@ -2,101 +2,845 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>테니스 마스터 스코어보드</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>테니스 스코어보드 (워치 최적화)</title>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #2c3e50; color: white; padding: 10px; }
-        .board { display: flex; justify-content: center; gap: 10px; }
-        .player-box { background: #34495e; padding: 15px; border-radius: 12px; width: 45%; }
-        .serving { border: 3px solid #f1c40f; }
-        .score { font-size: 2.5em; font-weight: bold; margin: 10px 0; }
-        button { padding: 15px; margin: 5px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .btn-score { background: #27ae60; color: white; width: 90%; }
-        .info { margin: 10px 0; font-size: 1.1em; color: #f1c40f; }
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap');
+
+        :root {
+            --bg-color: #000000;
+            --tennis-neon: #d2ff2b;
+            --player-a-color: #0a84ff;
+            --player-b-color: #ff9f0a;
+            --text-color: #ffffff;
+            --text-muted: #8e8e93;
+            --belt-bg: #1c1c1e;
+            --btn-bg: #2c2c2e;
+            --btn-active: #3a3a3c;
+            --serving-glow: 0 0 10px var(--tennis-neon);
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: radial-gradient(circle, #252830 0%, #0f1015 100%);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Smartwatch Circular Simulator Frame (for desktop testing) */
+        .simulator-frame {
+            position: relative;
+            width: 380px;
+            height: 380px;
+            border-radius: 50%;
+            background-color: var(--bg-color);
+            border: 12px solid #1e1e24;
+            box-shadow: 
+                0 0 0 2px #3a3a43,
+                0 15px 45px rgba(0,0,0,0.9), 
+                inset 0 0 20px rgba(0,0,0,1);
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        /* Responsive styling for actual watch screens or small viewports */
+        @media (max-width: 440px) {
+            body {
+                background: var(--bg-color);
+            }
+            .simulator-frame {
+                width: 100vw;
+                height: 100vh;
+                max-width: 100%;
+                max-height: 100%;
+                border: none;
+                box-shadow: none;
+                border-radius: 0;
+            }
+        }
+
+        /* Watch screen container */
+        .watch-screen {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            overflow: hidden;
+            background: var(--bg-color);
+            padding: 9% 0;
+        }
+
+        /* Player touch zones (Huge buttons) */
+        .player-zone {
+            width: 100%;
+            height: 42%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+            transition: background-color 0.15s ease;
+            z-index: 1;
+        }
+
+        .player-zone:active {
+            background-color: rgba(255, 255, 255, 0.07);
+        }
+
+        .player-zone.player-a {
+            padding-bottom: 2%;
+        }
+
+        .player-zone.player-b {
+            padding-top: 2%;
+        }
+
+        /* Player Info Header with dynamic pills */
+        .player-header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            margin-bottom: 2px;
+            padding: 4px 16px;
+            z-index: 5;
+        }
+        
+        .player-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background-color: rgba(255, 255, 255, 0.06);
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+        
+        .player-pill:active {
+            background-color: rgba(255, 255, 255, 0.18);
+        }
+
+        .player-pill .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--tennis-neon);
+            display: inline-block;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Active server highlight styling */
+        .player-pill.active-server {
+            background-color: rgba(255, 255, 255, 0.15);
+            color: var(--text-color);
+        }
+
+        /* Team A active server specific colors */
+        .player-a .player-pill.active-server {
+            color: var(--player-a-color);
+            box-shadow: 0 0 10px rgba(10, 132, 255, 0.3);
+            border: 1px solid rgba(10, 132, 255, 0.5);
+            background-color: rgba(10, 132, 255, 0.12);
+        }
+        .player-a .player-pill.active-server .dot {
+            background-color: var(--player-a-color);
+            opacity: 1;
+            transform: scale(1);
+            box-shadow: 0 0 6px var(--player-a-color);
+        }
+
+        /* Team B active server specific colors */
+        .player-b .player-pill.active-server {
+            color: var(--player-b-color);
+            box-shadow: 0 0 10px rgba(255, 159, 10, 0.3);
+            border: 1px solid rgba(255, 159, 10, 0.5);
+            background-color: rgba(255, 159, 10, 0.12);
+        }
+        .player-b .player-pill.active-server .dot {
+            background-color: var(--player-b-color);
+            opacity: 1;
+            transform: scale(1);
+            box-shadow: 0 0 6px var(--player-b-color);
+        }
+
+        /* Pulse highlight when server needs to be selected */
+        .serve-setup-glow .player-pill {
+            animation: pill-pulse 1.3s infinite alternate;
+        }
+
+        @keyframes pill-pulse {
+            0% {
+                box-shadow: 0 0 2px rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                background-color: rgba(255, 255, 255, 0.06);
+            }
+            100% {
+                box-shadow: 0 0 8px var(--tennis-neon);
+                border: 1px solid var(--tennis-neon);
+                background-color: rgba(210, 255, 43, 0.14);
+                color: var(--text-color);
+            }
+        }
+
+        /* Big Scores */
+        .game-score {
+            font-size: 3.4rem;
+            font-weight: 800;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+            transition: transform 0.15s ease, font-size 0.2s ease;
+        }
+
+        .player-zone:active .game-score {
+            transform: scale(1.08);
+        }
+
+        .set-score {
+            font-size: 0.75rem;
+            background-color: #2c2c2e;
+            padding: 2px 10px;
+            border-radius: 20px;
+            margin-top: 4px;
+            font-weight: 700;
+            color: var(--text-color);
+            letter-spacing: 0.5px;
+        }
+
+        /* Center Belt */
+        .center-belt {
+            width: 100%;
+            height: 16%;
+            background-color: var(--belt-bg);
+            border-top: 1px solid #2c2c2e;
+            border-bottom: 1px solid #2c2c2e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 10%;
+            z-index: 10;
+            position: relative;
+        }
+
+        .status-text {
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: var(--tennis-neon);
+            text-align: center;
+            max-width: 45%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            letter-spacing: 0.5px;
+            transition: color 0.3s ease;
+        }
+
+        /* Circular utility buttons */
+        .btn-circle {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: none;
+            background-color: var(--btn-bg);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .btn-circle:active {
+            background-color: var(--btn-active);
+            transform: scale(0.9);
+        }
+
+        .btn-circle svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        /* Special style for serve setup stage */
+        .serve-setup-glow {
+            animation: pulse-glow 1.5s infinite ease-in-out;
+        }
+
+        @keyframes pulse-glow {
+            0% {
+                background-color: rgba(210, 255, 43, 0);
+            }
+            50% {
+                background-color: rgba(210, 255, 43, 0.04);
+            }
+            100% {
+                background-color: rgba(210, 255, 43, 0);
+            }
+        }
     </style>
 </head>
 <body>
 
-    <h2>🎾 테니스 마스터</h2>
-    <div id="status" class="info">서버를 선택하세요</div>
+    <div class="simulator-frame">
+        <div class="watch-screen">
+            
+            <!-- Player A Zone -->
+            <div id="zoneA" class="player-zone player-a" onclick="scorePoint('A')">
+                <div id="headA" class="player-header">
+                    <!-- Dynamically rendered based on gameMode -->
+                </div>
+                <div id="scoreA" class="game-score">0</div>
+                <div id="setsA" class="set-score">SET 0</div>
+            </div>
 
-    <div class="board">
-        <div id="boxA" class="player-box">
-            <h3>Player A</h3>
-            <div id="setsA">세트: 0</div>
-            <div id="scoreA" class="score">0</div>
-            <button class="btn-score" onclick="scorePoint('A')">득점</button>
-        </div>
-        <div id="boxB" class="player-box">
-            <h3>Player B</h3>
-            <div id="setsB">세트: 0</div>
-            <div id="scoreB" class="score">0</div>
-            <button class="btn-score" onclick="scorePoint('B')">득점</button>
-        </div>
-    </div>
+            <!-- Center Belt -->
+            <div class="center-belt">
+                <button id="btnUndo" class="btn-circle" onclick="undo()" title="되돌리기">
+                    <!-- Dynamic: Singles/Doubles toggle when empty, Undo when active -->
+                </button>
+                <div id="status" class="status-text">서브 선택</div>
+                <button id="btnReset" class="btn-circle" onclick="confirmReset()" title="초기화">
+                    <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                </button>
+            </div>
 
-    <div style="margin-top:20px;">
-        <button onclick="setServer('A')">A 서브 시작</button>
-        <button onclick="setServer('B')">B 서브 시작</button>
-        <button onclick="resetAll()" style="background:#e74c3c;">전체 초기화</button>
+            <!-- Player B Zone -->
+            <div id="zoneB" class="player-zone player-b" onclick="scorePoint('B')">
+                <div id="setsB" class="set-score">SET 0</div>
+                <div id="scoreB" class="game-score">0</div>
+                <div id="headB" class="player-header">
+                    <!-- Dynamically rendered based on gameMode -->
+                </div>
+            </div>
+
+        </div>
     </div>
 
     <script>
         let sA = 0, sB = 0, setA = 0, setB = 0;
-        let server = null; // 'A' or 'B'
+        let server = null; // 'A1', 'A2', 'B1', 'B2' (Doubles) or 'A', 'B' (Singles)
         let isTiebreak = false;
         let ad = null; // null, 'A', 'B'
+        
+        // Game options & rotation tracking
+        let gameMode = 'doubles'; // 'doubles' (Default) or 'singles'
+        let firstServingTeam = null; // 'A' or 'B'
+        let sequenceA = ['A1', 'A2'];
+        let sequenceB = ['B1', 'B2'];
+        let tiebreakOrder = [];
+        let tiebreakFirstServer = null;
 
-        function setServer(p) { server = p; updateUI(); }
+        let stateHistory = [];
+        let resetTimeout = null;
+        let resetConfirming = false;
+        let audioCtx = null;
 
-        function scorePoint(p) {
-            if (!server) { alert("서버를 먼저 선택하세요!"); return; }
-            
-            if (isTiebreak) {
-                if (p === 'A') sA++; else sB++;
-                if ((sA >= 7 || sB >= 7) && Math.abs(sA - sB) >= 2) endGame(sA > sB ? 'A' : 'B');
-            } else {
-                // 일반 게임 로직 (No-Ad 모드 가정)
-                if (p === 'A') {
-                    if (sA < 3) sA++;
-                    else if (sA === 3 && sB === 3) { if (ad === 'A') endGame('A'); else ad = 'A'; }
-                    else if (sA === 3 && ad === 'B') ad = null;
-                    else endGame('A');
-                } else {
-                    if (sB < 3) sB++;
-                    else if (sB === 3 && sA === 3) { if (ad === 'B') endGame('B'); else ad = 'B'; }
-                    else if (sB === 3 && ad === 'A') ad = null;
-                    else endGame('B');
+        // Vibrate helper (works on Wear OS browsers like Samsung Internet)
+        function vibrate(ms) {
+            if (navigator.vibrate) {
+                try {
+                    navigator.vibrate(ms);
+                } catch (e) {
+                    console.log("Vibration blocked or not supported");
                 }
             }
-            
-            // 서브 변경 (타이브레이크는 2점마다, 일반은 매 게임마다)
-            if (!isTiebreak) server = (p === 'A' ? 'B' : 'A');
-            else if ((sA + sB) % 2 !== 0) server = (server === 'A' ? 'B' : 'A');
+        }
 
+        // Web Audio Synthesizer (Zero-dependency sound effects)
+        function playSound(type) {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                const now = audioCtx.currentTime;
+                
+                if (type === 'score') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(580, now);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                    osc.start(now);
+                    osc.stop(now + 0.12);
+                } else if (type === 'win') {
+                    // Triumphant double beep
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now); // C5
+                    osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+                    osc.start(now);
+                    osc.stop(now + 0.28);
+                } else if (type === 'undo' || type === 'reset') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(280, now);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+                    osc.start(now);
+                    osc.stop(now + 0.18);
+                }
+            } catch (e) {
+                console.warn("Audio Context error:", e);
+            }
+        }
+
+        function saveState() {
+            stateHistory.push(JSON.stringify({
+                sA, sB, setA, setB, server, isTiebreak, ad,
+                gameMode, firstServingTeam, sequenceA, sequenceB,
+                tiebreakFirstServer, tiebreakOrder
+            }));
+            if (stateHistory.length > 30) {
+                stateHistory.shift();
+            }
+        }
+
+        function toggleGameMode() {
+            if (stateHistory.length > 0) return; // Prevent change after score started
+            
+            gameMode = gameMode === 'doubles' ? 'singles' : 'doubles';
+            server = null;
+            firstServingTeam = null;
+            sequenceA = ['A1', 'A2'];
+            sequenceB = ['B1', 'B2'];
+            tiebreakOrder = [];
+            tiebreakFirstServer = null;
+
+            vibrate(40);
+            playSound('undo');
+            updateHeaders();
+            updateUI();
+        }
+
+        function setServerManually(p, event) {
+            if (event) event.stopPropagation(); // Prevent trigger scorePoint
+            
+            saveState();
+            server = p;
+            
+            if (gameMode === 'doubles') {
+                let team = p.startsWith('A') ? 'A' : 'B';
+                let seq = team === 'A' ? sequenceA : sequenceB;
+                
+                if (isTiebreak) {
+                    let S = sA + sB;
+                    let serverIdx = Math.floor((S + 1) / 2) % 4;
+                    let currentIdxOfP = tiebreakOrder.indexOf(p);
+                    if (currentIdxOfP !== -1 && currentIdxOfP !== serverIdx) {
+                        // Swap elements in tiebreak rotation
+                        let temp = tiebreakOrder[serverIdx];
+                        tiebreakOrder[serverIdx] = p;
+                        tiebreakOrder[currentIdxOfP] = temp;
+                    }
+                } else {
+                    let activeIdx = Math.floor((setA + setB) / 2) % 2;
+                    if (seq[activeIdx] !== p) {
+                        // Swap players in sequence to match manual override
+                        let other = seq[activeIdx];
+                        seq[activeIdx] = p;
+                        seq[1 - activeIdx] = other;
+                    }
+                    if (firstServingTeam === null) {
+                        firstServingTeam = team;
+                    }
+                }
+            } else {
+                // Singles mode manual server setting
+                if (isTiebreak) {
+                    let S = sA + sB;
+                    let teamIdx = Math.floor((S + 1) / 2) % 2;
+                    let pTeam = p; // 'A' or 'B'
+                    if (teamIdx === 0) {
+                        tiebreakFirstServer = pTeam;
+                    } else {
+                        tiebreakFirstServer = pTeam === 'A' ? 'B' : 'A';
+                    }
+                } else {
+                    if (firstServingTeam === null) {
+                        firstServingTeam = p;
+                    }
+                }
+            }
+
+            vibrate(50);
+            playSound('score');
+            updateUI();
+        }
+
+        function scorePoint(p) {
+            // Setup server by tapping a zone if it's not set
+            if (!server) {
+                // In doubles, we default to the first player of the tapped team (A1 or B1)
+                // In singles, we set to A or B
+                let selectedServer = (gameMode === 'doubles') ? (p === 'A' ? 'A1' : 'B1') : p;
+                setServerManually(selectedServer);
+                return;
+            }
+
+            saveState();
+
+            if (isTiebreak) {
+                if (p === 'A') sA++; else sB++;
+                vibrate(50);
+                
+                // Tiebreak logic: 7 points, lead by 2
+                if ((sA >= 7 || sB >= 7) && Math.abs(sA - sB) >= 2) {
+                    playSound('win');
+                    endGame(sA > sB ? 'A' : 'B');
+                } else {
+                    playSound('score');
+                    // Tiebreak server rotation
+                    let S = sA + sB;
+                    if (gameMode === 'doubles') {
+                        let serverIdx = Math.floor((S + 1) / 2) % 4;
+                        server = tiebreakOrder[serverIdx];
+                    } else {
+                        let teamIdx = Math.floor((S + 1) / 2) % 2;
+                        server = teamIdx === 0 ? tiebreakFirstServer : (tiebreakFirstServer === 'A' ? 'B' : 'A');
+                    }
+                }
+            } else {
+                // Regular game logic with standard Advantage
+                if (p === 'A') {
+                    if (sA < 3) {
+                        sA++;
+                        playSound('score');
+                    } else if (sA === 3) {
+                        if (sB < 3) {
+                            playSound('win');
+                            endGame('A');
+                        } else if (sB === 3) {
+                            if (ad === 'A') {
+                                playSound('win');
+                                endGame('A');
+                            } else if (ad === 'B') {
+                                ad = null; // Advantage B -> Deuce
+                                playSound('score');
+                            } else {
+                                ad = 'A'; // Deuce -> Advantage A
+                                playSound('score');
+                            }
+                        }
+                    }
+                } else { // Player B scores
+                    if (sB < 3) {
+                        sB++;
+                        playSound('score');
+                    } else if (sB === 3) {
+                        if (sA < 3) {
+                            playSound('win');
+                            endGame('B');
+                        } else if (sA === 3) {
+                            if (ad === 'B') {
+                                playSound('win');
+                                endGame('B');
+                            } else if (ad === 'A') {
+                                ad = null; // Advantage A -> Deuce
+                                playSound('score');
+                            } else {
+                                ad = 'B'; // Deuce -> Advantage B
+                                playSound('score');
+                            }
+                        }
+                    }
+                }
+                vibrate(50);
+            }
             updateUI();
         }
 
         function endGame(winner) {
             if (winner === 'A') setA++; else setB++;
             sA = 0; sB = 0; ad = null;
+            
+            // Match set logic (typically 6-6 leads to tiebreak)
             isTiebreak = (setA === 6 && setB === 6);
+            
+            // Server alternates at the end of every normal game
+            if (gameMode === 'doubles') {
+                if (isTiebreak) {
+                    // Initialize Tiebreak Server Sequence for Doubles:
+                    // Server 1 (expected next) -> Opponent Server 2 -> Partner of Server 1 -> Partner of Server 2
+                    let nextTeam = (setA + setB) % 2 === 0 ? firstServingTeam : (firstServingTeam === 'A' ? 'B' : 'A');
+                    let idx = Math.floor((setA + setB) / 2) % 2;
+                    
+                    let actA = sequenceA[idx];
+                    let othA = sequenceA[1 - idx];
+                    let actB = sequenceB[idx];
+                    let othB = sequenceB[1 - idx];
+                    
+                    if (nextTeam === 'A') {
+                        tiebreakOrder = [actA, actB, othA, othB];
+                    } else {
+                        tiebreakOrder = [actB, actA, othB, othA];
+                    }
+                    tiebreakFirstServer = nextTeam;
+                    server = tiebreakOrder[0];
+                } else {
+                    let nextTeam = (setA + setB) % 2 === 0 ? firstServingTeam : (firstServingTeam === 'A' ? 'B' : 'A');
+                    let idx = Math.floor((setA + setB) / 2) % 2;
+                    server = nextTeam === 'A' ? sequenceA[idx] : sequenceB[idx];
+                }
+            } else {
+                // Singles rotation
+                let nextTeam = (setA + setB) % 2 === 0 ? firstServingTeam : (firstServingTeam === 'A' ? 'B' : 'A');
+                if (isTiebreak) {
+                    tiebreakFirstServer = nextTeam;
+                }
+                server = nextTeam;
+            }
+        }
+
+        function undo() {
+            if (stateHistory.length === 0) return;
+            
+            // If confirming reset, cancel it
+            if (resetConfirming) {
+                cancelResetConfirm();
+            }
+
+            let prevState = JSON.parse(stateHistory.pop());
+            sA = prevState.sA;
+            sB = prevState.sB;
+            setA = prevState.setA;
+            setB = prevState.setB;
+            server = prevState.server;
+            isTiebreak = prevState.isTiebreak;
+            ad = prevState.ad;
+            
+            // Restore rotation values
+            gameMode = prevState.gameMode;
+            firstServingTeam = prevState.firstServingTeam;
+            sequenceA = prevState.sequenceA;
+            sequenceB = prevState.sequenceB;
+            tiebreakFirstServer = prevState.tiebreakFirstServer;
+            tiebreakOrder = prevState.tiebreakOrder;
+            
+            vibrate(40);
+            playSound('undo');
+            updateHeaders();
+            updateUI();
+        }
+
+        function confirmReset() {
+            vibrate(40);
+            if (!resetConfirming) {
+                resetConfirming = true;
+                document.getElementById('status').innerText = "리셋? 터치";
+                document.getElementById('status').style.color = "#ff453a";
+                document.getElementById('btnReset').style.backgroundColor = "#ff453a";
+                
+                resetTimeout = setTimeout(() => {
+                    cancelResetConfirm();
+                }, 2000);
+            } else {
+                clearTimeout(resetTimeout);
+                resetConfirming = false;
+                document.getElementById('btnReset').style.backgroundColor = "var(--btn-bg)";
+                document.getElementById('status').style.color = "var(--tennis-neon)";
+                playSound('reset');
+                resetAll();
+            }
+        }
+
+        function cancelResetConfirm() {
+            if (resetTimeout) clearTimeout(resetTimeout);
+            resetConfirming = false;
+            document.getElementById('btnReset').style.backgroundColor = "var(--btn-bg)";
+            document.getElementById('status').style.color = "var(--tennis-neon)";
+            updateUI();
+        }
+
+        function resetAll() {
+            sA = 0; sB = 0; setA = 0; setB = 0;
+            server = null;
+            isTiebreak = false;
+            ad = null;
+            
+            firstServingTeam = null;
+            sequenceA = ['A1', 'A2'];
+            sequenceB = ['B1', 'B2'];
+            tiebreakOrder = [];
+            tiebreakFirstServer = null;
+
+            stateHistory = [];
+            vibrate(80);
+            updateHeaders();
+            updateUI();
+        }
+
+        function updateHeaders() {
+            let headA = document.getElementById('headA');
+            let headB = document.getElementById('headB');
+            
+            if (gameMode === 'doubles') {
+                headA.innerHTML = `
+                    <span class="player-pill" id="pillA1" onclick="setServerManually('A1', event)">A1<span class="dot"></span></span>
+                    <span class="player-pill" id="pillA2" onclick="setServerManually('A2', event)">A2<span class="dot"></span></span>
+                `;
+                headB.innerHTML = `
+                    <span class="player-pill" id="pillB1" onclick="setServerManually('B1', event)">B1<span class="dot"></span></span>
+                    <span class="player-pill" id="pillB2" onclick="setServerManually('B2', event)">B2<span class="dot"></span></span>
+                `;
+            } else {
+                headA.innerHTML = `
+                    <span class="player-pill" id="pillA" onclick="setServerManually('A', event)">Player A<span class="dot"></span></span>
+                `;
+                headB.innerHTML = `
+                    <span class="player-pill" id="pillB" onclick="setServerManually('B', event)">Player B<span class="dot"></span></span>
+                `;
+            }
         }
 
         function updateUI() {
-            document.getElementById('setsA').innerText = `세트: ${setA}`;
-            document.getElementById('setsB').innerText = `세트: ${setB}`;
+            // Format set score display
+            document.getElementById('setsA').innerText = `SET ${setA}`;
+            document.getElementById('setsB').innerText = `SET ${setB}`;
             
+            // Format game score display
             let pts = ["0", "15", "30", "40"];
-            document.getElementById('scoreA').innerText = isTiebreak ? sA : (ad === 'A' ? "AD" : pts[sA]);
-            document.getElementById('scoreB').innerText = isTiebreak ? sB : (ad === 'B' ? "AD" : pts[sB]);
             
-            document.getElementById('boxA').className = `player-box ${server === 'A' ? 'serving' : ''}`;
-            document.getElementById('boxB').className = `player-box ${server === 'B' ? 'serving' : ''}`;
-            document.getElementById('status').innerText = isTiebreak ? "타이브레이크 진행 중!" : "게임 진행 중";
+            let displayScoreA = "";
+            let displayScoreB = "";
+
+            if (!server) {
+                displayScoreA = "선택";
+                displayScoreB = "선택";
+                document.getElementById('scoreA').style.fontSize = "2.6rem";
+                document.getElementById('scoreB').style.fontSize = "2.6rem";
+            } else {
+                document.getElementById('scoreA').style.fontSize = "3.4rem";
+                document.getElementById('scoreB').style.fontSize = "3.4rem";
+                
+                if (isTiebreak) {
+                    displayScoreA = sA;
+                    displayScoreB = sB;
+                } else {
+                    displayScoreA = (ad === 'A' ? "AD" : pts[sA]);
+                    displayScoreB = (ad === 'B' ? "AD" : pts[sB]);
+                }
+            }
+
+            document.getElementById('scoreA').innerText = displayScoreA;
+            document.getElementById('scoreB').innerText = displayScoreB;
+            
+            // Highlights active server pill
+            document.querySelectorAll('.player-pill').forEach(el => {
+                el.classList.remove('active-server');
+            });
+            if (server) {
+                let activePill = document.getElementById('pill' + server);
+                if (activePill) {
+                    activePill.classList.add('active-server');
+                }
+            }
+
+            // Highlights active team header background/glow
+            let headA = document.getElementById('headA');
+            let headB = document.getElementById('headB');
+            
+            if (server && server.startsWith('A')) {
+                headA.style.color = "var(--player-a-color)";
+                headB.style.color = "";
+            } else if (server && server.startsWith('B')) {
+                headA.style.color = "";
+                headB.style.color = "var(--player-b-color)";
+            } else {
+                headA.style.color = "";
+                headB.style.color = "";
+            }
+
+            // Pulse effect for server selection state
+            let zoneA = document.getElementById('zoneA');
+            let zoneB = document.getElementById('zoneB');
+            
+            if (!server) {
+                zoneA.classList.add('serve-setup-glow');
+                zoneB.classList.add('serve-setup-glow');
+                document.getElementById('status').innerText = "서브 선택";
+                document.getElementById('status').style.color = "var(--tennis-neon)";
+            } else {
+                zoneA.classList.remove('serve-setup-glow');
+                zoneB.classList.remove('serve-setup-glow');
+                
+                if (isTiebreak) {
+                    document.getElementById('status').innerText = "TIEBREAK";
+                    document.getElementById('status').style.color = "#ff453a";
+                } else if (sA === 3 && sB === 3 && ad === null) {
+                    document.getElementById('status').innerText = "DEUCE";
+                    document.getElementById('status').style.color = "#ff9f0a";
+                } else {
+                    document.getElementById('status').innerText = "MATCH";
+                    document.getElementById('status').style.color = "var(--tennis-neon)";
+                }
+            }
+
+            // Smart Swap Button (Toggles gameMode if no history, otherwise acts as Undo)
+            let btnUndo = document.getElementById('btnUndo');
+            if (stateHistory.length > 0) {
+                // Show Undo button (↩)
+                btnUndo.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>`;
+                btnUndo.onclick = undo;
+                btnUndo.title = "되돌리기";
+                btnUndo.style.opacity = "1";
+                btnUndo.style.pointerEvents = "auto";
+            } else {
+                // Show Mode Toggle (👤 / 👥)
+                if (gameMode === 'doubles') {
+                    // Double users icon (Tap to toggle to singles)
+                    btnUndo.innerHTML = `<svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>`;
+                    btnUndo.title = "단식으로 전환";
+                } else {
+                    // Single user icon (Tap to toggle to doubles)
+                    btnUndo.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
+                    btnUndo.title = "복식으로 전환";
+                }
+                btnUndo.onclick = toggleGameMode;
+                btnUndo.style.opacity = "1";
+                btnUndo.style.pointerEvents = "auto";
+            }
         }
 
-        function resetAll() { sA=0; sB=0; setA=0; setB=0; server=null; isTiebreak=false; updateUI(); }
+        // Initial setup
+        updateHeaders();
+        updateUI();
     </script>
 </body>
 </html>
