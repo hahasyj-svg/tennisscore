@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>테니스 마스터 스코어보드</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #2c3e50; color: white; padding: 10px; }
+        .board { display: flex; justify-content: center; gap: 10px; }
+        .player-box { background: #34495e; padding: 15px; border-radius: 12px; width: 45%; }
+        .serving { border: 3px solid #f1c40f; }
+        .score { font-size: 2.5em; font-weight: bold; margin: 10px 0; }
+        button { padding: 15px; margin: 5px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-score { background: #27ae60; color: white; width: 90%; }
+        .info { margin: 10px 0; font-size: 1.1em; color: #f1c40f; }
+    </style>
+</head>
+<body>
+
+    <h2>🎾 테니스 마스터</h2>
+    <div id="status" class="info">서버를 선택하세요</div>
+
+    <div class="board">
+        <div id="boxA" class="player-box">
+            <h3>Player A</h3>
+            <div id="setsA">세트: 0</div>
+            <div id="scoreA" class="score">0</div>
+            <button class="btn-score" onclick="scorePoint('A')">득점</button>
+        </div>
+        <div id="boxB" class="player-box">
+            <h3>Player B</h3>
+            <div id="setsB">세트: 0</div>
+            <div id="scoreB" class="score">0</div>
+            <button class="btn-score" onclick="scorePoint('B')">득점</button>
+        </div>
+    </div>
+
+    <div style="margin-top:20px;">
+        <button onclick="setServer('A')">A 서브 시작</button>
+        <button onclick="setServer('B')">B 서브 시작</button>
+        <button onclick="resetAll()" style="background:#e74c3c;">전체 초기화</button>
+    </div>
+
+    <script>
+        let sA = 0, sB = 0, setA = 0, setB = 0;
+        let server = null; // 'A' or 'B'
+        let isTiebreak = false;
+        let ad = null; // null, 'A', 'B'
+
+        function setServer(p) { server = p; updateUI(); }
+
+        function scorePoint(p) {
+            if (!server) { alert("서버를 먼저 선택하세요!"); return; }
+            
+            if (isTiebreak) {
+                if (p === 'A') sA++; else sB++;
+                if ((sA >= 7 || sB >= 7) && Math.abs(sA - sB) >= 2) endGame(sA > sB ? 'A' : 'B');
+            } else {
+                // 일반 게임 로직 (No-Ad 모드 가정)
+                if (p === 'A') {
+                    if (sA < 3) sA++;
+                    else if (sA === 3 && sB === 3) { if (ad === 'A') endGame('A'); else ad = 'A'; }
+                    else if (sA === 3 && ad === 'B') ad = null;
+                    else endGame('A');
+                } else {
+                    if (sB < 3) sB++;
+                    else if (sB === 3 && sA === 3) { if (ad === 'B') endGame('B'); else ad = 'B'; }
+                    else if (sB === 3 && ad === 'A') ad = null;
+                    else endGame('B');
+                }
+            }
+            
+            // 서브 변경 (타이브레이크는 2점마다, 일반은 매 게임마다)
+            if (!isTiebreak) server = (p === 'A' ? 'B' : 'A');
+            else if ((sA + sB) % 2 !== 0) server = (server === 'A' ? 'B' : 'A');
+
+            updateUI();
+        }
+
+        function endGame(winner) {
+            if (winner === 'A') setA++; else setB++;
+            sA = 0; sB = 0; ad = null;
+            isTiebreak = (setA === 6 && setB === 6);
+        }
+
+        function updateUI() {
+            document.getElementById('setsA').innerText = `세트: ${setA}`;
+            document.getElementById('setsB').innerText = `세트: ${setB}`;
+            
+            let pts = ["0", "15", "30", "40"];
+            document.getElementById('scoreA').innerText = isTiebreak ? sA : (ad === 'A' ? "AD" : pts[sA]);
+            document.getElementById('scoreB').innerText = isTiebreak ? sB : (ad === 'B' ? "AD" : pts[sB]);
+            
+            document.getElementById('boxA').className = `player-box ${server === 'A' ? 'serving' : ''}`;
+            document.getElementById('boxB').className = `player-box ${server === 'B' ? 'serving' : ''}`;
+            document.getElementById('status').innerText = isTiebreak ? "타이브레이크 진행 중!" : "게임 진행 중";
+        }
+
+        function resetAll() { sA=0; sB=0; setA=0; setB=0; server=null; isTiebreak=false; updateUI(); }
+    </script>
+</body>
+</html>
