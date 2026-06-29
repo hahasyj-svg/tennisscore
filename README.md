@@ -1,2 +1,0 @@
-# tennisscore
-Tennis  Score Counter
